@@ -1,0 +1,9 @@
+.idea/
+/*/jvm-g1-gc.iml
+/*/out
+*/target/
+*/*/*.iml
+*/*.iml
+/*.log
+/logs
+/*.pdf
