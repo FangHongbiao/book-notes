@@ -452,9 +452,26 @@
         3. 元空间虚拟机负责元空间的分配，其采用的形式为组块分配。组块的大小因类加载器的类型而异。在元空间虚拟机中存在一个全局的空闲组块列表。当一个类加载器需要组块时，它就会从这个全局的组块列表中获取并维持一个自己的组块列表。当一个类加载器不再存活，其持有的组块将会被释放，并返回给全局组块列表
 
 
-
-
-
+##### G1 GC 应用示例
+1. 不同收集器日志输出的规律
+    1. 串行收集器：即输出DefNew ，是使用`-XX:+UseSerialGC` (年轻代、老年代都使用串行
+   回收收集器)运行后输出的。
+    2. 并行收集器：即输出ParNew ，是使用`-XX:+UseParNewGC` (年轻代使用并行收集器，老年代使用串行回收收集器)或者`-XX:+UseConcMarkSweepGC` (轻代使用并行收集
+   器，老年代使用CMS)运行后输出的。
+    3. PSYoungGen ：是使用`-XX:+UseParallelOldGC` (年轻代、老年代都使用并行回收收集器) 或者`XX:+UseParallelGC` (年轻代使用并行回收收集器，老年代使用串行回收收集器) 运行输出的。
+    4. Garbage-First heap ：是使用`-XX:+UseGlGC` (Gl 收集器)运行输出的。
+2. Parallel Old GC 在JDK5 中被引入，与Parallel GC 相比唯一的区别在于Parallel Old GC 算法是为老年代设计的。它的执行过程分为三步，即标记(Mark)、总结(Summary)、压缩(Compaction)。其中Summary 步骤为存活的对象在己执行过GC 的空间上标出位置，因此与Mark-Sweep-Compact 算法中的Sweep 步骤有所区别，并需要一些复杂步骤才能完成。
+3. 在JDK7U45 之前，我们在使用ParallelGC 时是区分年轻代和老年代的，即老年代并行回收收集器需要通过设置`UseParallelOldGC`来启动， 在JDK7U45 之后两者合并了
+4. G1 GC过程中应用程序会被暂停是由于Gl GC 针对年轻代(有时候是年轻代＋老年代)有一个评估阶段，这个评估阶段实质上是在做数据拷贝，既然是拷贝，就一定需要一个基准点， 那么为了维护这个基准点， 需要设置对应的应用程序暂停时间，这个时间段就称为保护点(safe point), 这和Oracle 的ch巳ckPoint 很像。
+5. 每一代GC 对应的GC线程 \
+![](images/垃圾收集器对应的GC线程.png)
+6. GC线程定义图 \
+![](images/GC线程定义图1.png) \
+![](images/GC线程定义图2.png)
+7. 一个去重对象的必备条件有如下三点:
+    1. Java.lang.String 对象的一个实例。
+    2. 这个对象在年轻代堆区间。
+    3. 这个对象的年龄达到去重年龄代，或者这个对象已经在老年代堆区间并且对象年龄比去重年龄小。选项`-XX:StringDeduplicationAgeThreshold` 设置了这个年龄界限。
 
 
 
@@ -480,13 +497,57 @@
     14. -XX:CMSlnitiatingOccupanyFraction: CMS用于设置当老年代中的内存使用率达到多少百分比的时候执行内存回收(低版本的JDK 默认值为68%, JDK6 及以上版
         本默认值为92 %)，这里的内存回收范围仅限于老年代，而非整个堆空间，因此通过该选项便可以有效降低Full GC 的执行次数。
     15. -XX :+UseConcMarkSweepGC: 年轻代使用并行收集器,手动指定使用CMS 收集器执行内存回收任务。
-    16.
+    16. -XX:+PrintGCDetails -verbose:gc -Xloggc:gc.log
+    17. -XX:+PrintGCApplicationStoppedTime: 如果使用该选项，会输出GC 造成应用程序暂停的时间。一般和－XX:+ PrintGCApplicationConcurrentTime组合起来一起使用，这样比较有利于查看输出。
+    18. -XX:ConcGCThreads: 这个选项用来设置与Java 应用程序线程并行执行的GC 线程数量，默认为GC 独占时运行线程的1/4 。
 
 2. G1 GC 与Metaspace 相关的选项:
     1. -XX:MetaspaceSize ：初始化元空间的大小(默认12Mbytes 在32bit client VM and 16Mbytes 在32bit server VM ，在64bitVM 上会更大些)。
     2. -XX:MaxMetaspaceSize ：最大元空间的大小（默认本地内存） 。
     3. -XX:MinMetaspaceFreeRatio ：扩大空间的最小比率，当GC 后，内存占用超过这一比率，就会扩大空间。
     4. -XX:MaxMetaspaceFreeRatio ：缩小空间的最小比率，当GC 后，内存占用低于这一比率，就会缩小空间。
+
+3. G1 GC 独有选项
+    1. -XX:G1HeapRegionSize: 针对Region 这个概念的对应设置选项，后续GC 应该会继续采用Region 这个概念。Region 的大小默认为堆大小的112000 ，也可以设置为lMB 、2MB 、4MB 、8MB 、16MB ，以及32MB ，这六个划分档次。
+    2. -XX :G1HeapWastePercent: 这个选项控制G1 GC 不会回收的空闲内存比例， 默认是堆内存的5% 。G1 GC 在回收过程中会回收所有Region 的内存，井持续地做这个工作直到空闲内存比例达到设置的这个值为止，所以对于设置了较大值的堆内存来说，需要采用比较低的比例， 这样可以确保较小部分的内存不被回收。
+    3. -XX:G1MixedGCCountTarget: 老年代Region 的回收时间通常来说比年轻代Region 稍长一些，这个选项可以设置一个并行循环之后启动多少个混合GC ，默认值是8个。设置一个比较大的值可以让G1 GC 在老年代Region 回收时多花一些时间，如果一个混合GC 的停顿时间很长，说明它要做的事情很多，所以可以增大这个值的设置，但是如果这个值过大，也会造成并行循环等待混合GC 完成的时间相应的增加。
+    4. -XX:+G1PrintRegionlivenesslnfo: 由于开启这个选项会在标记循环阶段完成之后输出详细信息，专业一点的叫法是诊断选项, 所以在使用前需要开启选项UnlockDiagnosticVMOptions (-XX:+UnlockDiagnosticVMOptions 必须放在－ XX:+Gl PrintRegionLivenesslnfo 的前面)。这个选项启用后会打印堆内存内部每个Region 里面的存活对象信息，这些信息包括使用率、RSet 大小、回收一个Region 的价值(Region 内部回收价值评估，即性价比)。
+    5. -XX:G1ReservePercent: 每个年龄代都会有一些对象可以进入下一个阶段，为了确保这个提升过程正常完成，我们允许G1 GC 保留一些内存，这样就可以避免出现"to space exhausted "，错误，这个选项就是为了这个用途。 这个选项默认保留堆内存的10% 。注意，这个预留内存空间不能用于年轻代。
+    6. -XX:+G1SummarizeRSetStats: 和G1 PrintRegionLivenesslnfo 选项一样，这个选项也是一个诊断选项，所以也需要开启UnlockDiagnosticVMOptions 选项后才能使用，这也就意味着-XX:+UnlockDiagnosticVMOptions选项需要放在-XX:+G1SummarizeRSetStats 选项的前面。这个选项和-XX:G1SummarizeRSetStatsPeriod 一起使用的时候会阶段性地打印RSets 的详细信息，这有助于找到RSet 里面存在的问题。
+    7. -XX:+G1TraceConcRefinement: 这是一个诊断选项。如果启动这个诊断选项，那么并行Refinement 线程相关的信息会被打印。注意，线程启动和结束时的信息都会被打印
+    8. -XX:+G1UseAdaptiveConcRefinement: 这个选项默认是开启的。它会动态地对每一次GC 中-XX:G1ConcRefinementGreenZone、 -XX:G1ConcRefinementYellowZone 、XX:G1ConcRefinementRedZone 的值进行重新计算。\
+    并行Refinement 线程是持续运行的，并且会随着update log buffer 积累的数量而动态调节。-XX:G1ConcRefinementGreenZone、 -XX:G1ConcRefinementYellowZone 、XX:G1ConcRefinementRedZone ，是被用来根据不同的buffer 使用不同的Refinement 线程，目的就是为了保证Refinement 线程一定要尽可能地跟上update log buffer 产生的步伐。但是这个Refinement 线程不是无限增加的， 一旦出现Refinement 线程跟不上update log buffer 产生的速度、update log buffer 开始出现积压的情况， Mutator 线程（即应用业务线程〉就会协助Refinement 线程执行RSet 的更新工作。这个Mutator 线程实际上就是应用业务线程， 当业务线程去参与RSet修改时，系统性能一定会受到影响，所以需要尽力去避免这种状况。
+    9. -XX:GCTimeRatio: 这个选项代表Java 应用线程花费的时间与GC 线程花费时间的比率。通过这个比率值可以调节Java 应用线程或者GC 线程的工作时间，保障两者的执行时间。
+    10. -XX:+HeapDumpBeforeFullGC/-XX:+HeapDumpAfterFullGC: 这个选项启用之后，在Full GC 开始之前有一个hprof 文件会被创建。建议这个选项和－XX:+HeapDumpAfterFullGC 一起使用，可以通过对Full GC 发生前后的Java 堆内存进行对比，找出内存泄漏和其他问题。
+    11. -XX:InitiatingHeapOccupancyPercent: 该选项的默认值是45 ，表示G1 GC 并行循环初始设置的堆大小值，这个值决定了一个并行循环是不是要开始执行。它的逻辑是在一次GC 完成后，比较老年代占用的空间和整个Java堆之间的比例。如果大于这个值，则预约下一次GC 开始一个并行循环回收垃圾，从初始标记阶段开始。这个值越小， GC 越频繁，反之，值越大，可以让应用程序执行时间更长。不过在内存消耗很快的情况下，我认为早运行井行循环比晚运行要好，看病要趁早。
+    12. -XX:+UseStringDeduplication: 该选项启动Java String 对象的去重工作。JDK8u20 开始引入该选项，默认为不启用。我们知道一个判断Java String 对象值是否一样的语句"Stringl .equals(String2) =true "，如果开启了该选项，并且如果两个对象包含相同的内容，即返回"true"，则两个String 对象只会共享一个字符数组
+    13. -XX:StringDeduplicationAgeThreshold: 这个选项是针对 -XX:+UseStringDeduplication 选项的，默认值是3 。它的意思是一个字符串对象的年龄超过设定的阔值，或者提升到G1 GC 老年代Region 之后，就会成为字符串去重的候选对象，去重操作只会有一次。
+    14. -XX:+PrintStringDeduplicationStatistics: 这个选项挺有用的，能够帮助我们通过读取输出的统计资料来了解是否字符串去重后节约了大量的堆内存空间，默认是关闭的，就是说不会输出字符串去重的统计资料。
+    15. -XX:+G1UseAdaptiveIHOP: JDK9 提供的新的选项。这个选项的作用是通过动态调节标记阶段开始的时间，以达到提升应用程序吞吐量的目标，主要通过尽可能迟地触发标记循环方式来避免消耗老年代空间。
+    16. -XX:MaxGCPauseMills: 这个选项比较重要。它设置了G1 的目标停顿时间，单位是ms ，默认值为200ms 。这个值是一个目标时间，而不是最大停顿时间。GlGC 尽最大努力确保年轻代的回收时间可以控制在这个目标停顿时间范围里面，在GlGC 使用过程中，这个选项和-xms 、-xmx 两个选项一起使用，它们三个也最好在JVM启动时就一起配置好。
+    17. -XX:MinHeapFreeRatio: 这个选项设置堆内存里可以空闲的最小的内存空间大小，默认值为堆内存的40% 。当空闲堆内存大小小于这个设置的值时，我们需要判断·泊ns 和－Xmx 这两个值的初始化设置值，如果-xms 和-xmx 不一样，那么我们就有机会扩展堆内存，否则就无法扩展。
+    18. -XX:MaxHeapFreeRatio: 这个选项设置最大空闲空间大小，默认值为堆内存的70% 。这个选项和上面那个最小堆内存空闲大小刚好相反，当大于这个空闲比率时， GI GC 会自动减少堆内存大小。需要判断-xms 和-xmx这两个值的初始化设置值，如果-xms 和-xmx 不一样，那么就有机会减小堆内存，否则就无法减小。
+    19. -XX:+PrintAdaptiveSizePolicy: 这个选项决定是否开启堆内存大小变化的相应记录信息打印，即是否打印这些信息到GC日志里面。
+    20. -XX:+ResizePLAB: **GC**使用的本地线程分配缓存块采用动态值还是静态值进行设置是由这个选项决定的，它默认是开启的，这个设置对应的是GC 在提升对象时是否会调整PLAB 的大小。这个选项大家还是慎用，据说会出现性能问题，启用后可能会增加GC 的停顿时间。当应用开启的线程较多时，最好使用-XX:-ResizePLAB 来关闭PLAB ()的大小调整，以避免大量的线程通信所导致的性能下降。
+    21. -XX:+ResizeTLAB: **Java 应用线程**使用的本地线程分配缓存块采用动态值还是静态值进行设置是由这个选项决定的，它默认是开启的，即TLAB 值会被动态调整。 和PLAB 值动态调整不同的是，这个选项开启后会较大地提升应用程序性能， 因为TLAB的竞争、切换减少了。
+    22: -XX:+ClassUnloadingWithConcurrentMark: 这个选项开启在G1 GC 并行循环阶段卸载类，尤其是在老年代的并行回收阶段，默认是开启的。这个选项开启后会在并行循环的重标记阶段卸载JVM没有用到的类， 这些工作也可以放在Full GC 里面去做，但是提前做了有很大的好处。但因为开启它意味着重标记阶段的GC 停顿时间会拉长，这时候我们就要判断性价比了，如果GC 停顿时间比我们设置的最大GC 停顿目标时间还长，并且需要卸载的类也不多，那还是关闭这个选项吧。
+    22. -XX:+ClassUnloading: 默认值是Ture ，决定了JVM是否会卸载所有无用的类，如果关闭了这个选项，无论是井行回收循环，还是Full GC ，都不会再卸载这些类了，所以需谨慎关闭。
+    23. -XX:+UnlockDiagnosticVMOptions: 这个选项决定是否开启诊断选项，默认值是False ， 即不开启。
+    24. -XX:+UnlockExperimentalVMOptions: 除了之前说的诊断选项以外， JVM还有一些叫作试验选项(Experimental Options )，这些选项也需要通过，XX:+UnlockExperimentalVMOptions 这个选项开启，默认是关闭的。
+    25. -XX:+UnlockCommercialFeatures: 这个选项判断是否使用Oracle 特有的特性，默认是关闭的。
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ### 其他
 1. [Apache Mesos](http://mesos.apache.org/)
