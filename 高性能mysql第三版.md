@@ -229,6 +229,75 @@
          6. Mysql 能够处理的优化类型 \
          ![](images/Mysql能够处理的优化类型.png) \
          ![](images/Mysql能够处理的优化类型1.png)
+         ![](images/Mysql能够处理的优化类型2.png)
+         ![](images/Mysql能够处理的优化类型3.png)
+         7. 数据和索引的统计信息 \
+         ![](images/数据和索引的统计信息.png)
+         8. MySQL如何执行关联查询
+            1. MySQL对关联查询的定义 \
+            ![](images/MySQL对关联查询的定义.png)
+            2. Union查询的例子 \
+            ![](images/Union查询的例子.png)
+            3. MySQL关联查询的策略 \
+            ![](images/MySQL关联查询的策略1.png)   \
+            ![](images/MySQL关联查询的策略2.png)
+            4. MySQL不支持全外连接 \
+            ![](images/MySQL不支持全外连接.png)
+         9. 执行计划
+            1.  多表关联的一种方式 \
+            ![](images/多表关联的一种方式.png)
+            2. MySQL实现多表关联的方式(左侧深度优先的树, 因为他是用的嵌套循环关联查询) \
+            ![](images/MySQL实现多表关联的方式.png)
+         10. 关联查询优化器
+             1.  关联优化器选取执行计划 \
+             ![](images/关联优化器选取执行计划.png) \
+             ![](images/关联优化器选取执行计划1.png)
+         11. 排序优化
+             1.  索引排序 / 文件排序 \
+             ![](images/索引排序文件排序.png)
+             ![](images/索引排序文件排序2.png)
+             2. MySQL的两种排序算法 \
+             ![](images/mysql两种排序算法.png)
+             3. 关联查询的排序 \
+             ![](images/关联查询的排序.png)
+             4. MySQL5.6对查询排序的改进 \
+             ![](images/MySQL5.6对查询排序的改进.png)
+   4. 查询执行引擎
+      1. 查询执行阶段的过程   \
+      ![](images/查询执行阶段的过程.png)
+   5. 返回结果给客户端  \
+   ![](images/返回结果给客户端.png)
+5. MySQL查询优化器的局限性
+   1. 关联子查询
+      1. MySQL子查询的实现非常糟糕. IN 是一个例子
+      2. 如何用好关联子查询
+         1. 有时候关联子查询效率更高. 例如: NOT EXISTS 可以提前终止查询
+   2. Union的限制
+      1. MySQL限制下推  \
+      ![](images/MySQL限制下推.png)
+      2. Union的使用 \
+      ![](images/Union的使用.png)
+   3. 索引合并优化
+   4. 等值传递 (例如, 复制很大的IN集合)
+   5. 并行执行
+      1. MySQL不支持并行执行  \
+      ![](images/MySQL不支持并行执行.png)
+   6. 哈希关联
+      1. MySQL不支持哈希关联  \
+      ![](images/MySQL不支持哈希关联.png)
+   7. 松散索引扫描
+      1. 松散索引扫描   \
+      ![](images/松散索引扫描.png)
+      2. 松散索引扫描示例图   \
+      ![](images/松散索引扫描示例.png)
+      3. MySQL在特殊场景下对松散索引的支持   \
+      ![](images/MySQL在特殊场景下对松散索引的支持.png)
+   8. 最大值和最小值优化
+   9.  在同一个表上查询和更新
+       1.  MySQL不允许在同一个表上同时进行查询和更新 ([为什么?]())   \
+       ![](images/MySQL不允许在同一个表上同时进行查询和更新.png)
+6. 查询优化器的提示
+7. 优化特定类型的查询
 
 
 
