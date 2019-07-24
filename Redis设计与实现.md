@@ -90,5 +90,160 @@
 
 
 #### 整数集合
+1. 整数集合是集合键的实现之一
+1. 整数集合的实现
+   1. 整数集合数据结构 \
+   ![](images/整数集合数据结构.png)
+   2. contents属性
+   ![](images/整数集合数据结构1.png) \
+   ![](images/contents属性.png)
+2. 升级
+   1. 触发升级的条件 \
+   ![](images/触发升级的条件.png)
+   2. 升级的步骤 \
+   ![](images/升级的步骤.png)
+3. 升级的好处
+   1. 提升灵活性 \
+   ![提高灵活性](images/提高灵活性.png)
+   2. 节约内存
+4. 降级
+   1. 整数集合不支持降级, 一旦对集合进行了升级操作, 编码就会一直保存在升级后的状态
+5. 整数集合API \
+![](images/整数集合API.png)
+6. 疑问
+   1. intset以有序,无重复的方式存在, 那么存在重复元素怎么办?. --- 有重复就不叫set了...
+
+
 #### 压缩列表
+1. 压缩列表(ziplist)是列表键和哈希键的底层实现之一. 当一个列表键只包含少量列表项, 并且每个列表项要么就是小整数值, 要么就是长度比较短的字符串, 那么Redis就会使用压缩列表来做列表键的底层实现. \
+*OBJECT ENCODING 可以查看底层用的数据结构*
+2. 压缩列表的构成
+   1. 什么是压缩列表 \
+   ![](images/什么是压缩列表.png)
+   2. 压缩列表的组成 \
+   ![](images/压缩列表的组成.png)
+   3. 压缩列表节点的构成 \
+   ![](images/压缩列表节点的构成.png)
+      1. previous_entry_length \
+      ![](images/previous_entry_length.png)
+         1. 压缩链表的从表尾向表头遍历操作就是利用这个属性
+      1. encoding   \
+      ![](images/encoding.png)
+      ![](images/encoding2.png)
+3. 连锁更新
+   1. 两种触发连锁更新的情况    \
+   ![](images/连锁更新过程.png) \
+   ![](images/连锁更新过程2.png)
+   2. 连锁更新代价 \
+   ![](images/连锁更新代价1.png) \
+   ![](images/连锁更新代价2.png)
+4. 压缩列表API
+
+
+
 #### 对象
+1. Redis为什么要引入对象 \
+![](images/Redis为什么要引入对象.png)
+2. 对象的类型和编码
+   1. Redis使用对象表示数据库中的键和值, 当在数据库中创建一个键值对时, 至少会创建两个对象: 键对象 + 值对象
+   2. Redis中的每个对象都由一个redisObject结构表示, 保存了数据有关的三个属性: type + eccoding + ptr \
+   ![](images/redisObject结构.png)
+   3. 类型 \
+   ![](images/redisObject_type.png)
+   4. 编码和底层实现
+      1. 对象的编码 \
+      ![](images/对象的编码.png)
+      2. 不同类型和编码的对象 \
+      ![](images/不同类型和编码的对象.png)
+      2. 为什么要通过encoding属性来设定对象所使用的编码 \
+      ![](images/为什么要通过encoding属性来设定对象所使用的编码.png)
+3. 字符串对象
+   1. 字符串对象的编码可以是int, raw或者embstr
+   2. 分配规则 
+      1. 如果一个字符串对象保存的是整数值, 并且该数可以用long表示, 则编码为int
+      2. 如果一个字符串对象保存的是字符串值, 并且该字符串值长度大于32字节, 那么使用SDS, 编码为raw
+      3. 如果一个字符串对象保存的是字符串值, 并且该字符串值长度小于等于32字节, 使用embstr编码
+   3. embstr
+      1. 什么是是emstr \
+      ![](images/embstr.png)
+      2. embstr好处
+      ![](images/embstr好处.png)
+      3. emstr实际上没有任何修改api, 只读
+   4. 可以用 long double保存的浮点数在redis中也是以字符串形式保存
+   5. 字符串对象保存各类型值的编码方式 \
+   ![](images/字符串对象保存各类型值的编码方式.png)
+   6. 编码的转换
+      1. int, raw特定情况下可以转换
+      2. emstr实际上没有任何修改api, 只读的, 发生转换就会变成raw
+   7. 字符串命令的实现
+4. 列表对象
+   1. 概述
+      1. 列表对象的实现可以是ziplist或者linkedlist
+   2. 编码转换
+      1. 列表对象使用ziplist编码的必要条件 \
+      ![](images/列表对象使用ziplist编码的必要条件.png) \
+      ![](images/列表对象使用ziplist编码的必要条件可以修改.png)
+   3. 列表命令的实现 \
+   ![](images/列表命令的实现.png)
+5. 哈希对象
+   1. 概述
+      1. 哈希对象的编码可以是ziplist或者hashtable
+      2. 使用ziplist作为底层实现时 \
+      ![](images/使用ziplist作为底层实现时1.png)      \
+      ![](images/使用ziplist作为底层实现时2.png)      \
+      ![](images/使用ziplist作为底层实现时3.png)  
+      3. 使用hashtable作为底层实现时 \
+      ![](images/使用hashtable作为底层实现时1.png)
+      ![](images/使用hashtable作为底层实现时2.png)
+   2. 编码转换    \
+      1. 哈希对象使用ziplist编码的必要条件
+      ![](images/哈希对象使用ziplist编码的必要条件.png)  \
+      ![](images/哈希对象使用ziplist编码的必要条件1.png)
+   3. 哈希命令的实现    \
+   ![](images/哈希命令的实现.png)
+6. 集合对象
+   1. 概述
+      1. 集合对象的编码可以是intset或者hashtable
+      2. 使用intset作为底层实现 \
+      ![](images/使用intset作为底层实现.png)
+      3. 使用hashtable作为底层实现 \
+      ![](images/使用hashtable作为底层实现.png)
+      *Redis里面, set也是用hashtable实现, 但是value设置为null, 而jdk里是设为一个特定的object*
+   2. 编码转换
+      1. 使用inset作为底层数据结构的必要条件 \
+      ![](images/使用inset作为底层数据结构的必要条件.png) \
+      ![](images/使用inset作为底层数据结构的必要条件1.png)
+   3. 集合命令的实现    \
+   ![](images/集合命令的实现.png) \
+   ![](images/集合命令的实现1.png) 
+7. 有序集合对象
+   1. 概述
+      1. 有序集合对象的底层实现可以是ziplist或者skiplist
+      2. 有序集合对象使用ziplist作为底层实现 \
+      ![](images/有序集合对象使用ziplist作为底层实现.png)
+      3. 有序集合对象使用skiplist作为底层实现 \
+      ![](images/有序集合对象使用skiplist作为底层实现.png)  \
+      ![](images/有序集合对象使用skiplist作为底层实现1.png)
+      4. 为什么同时使用跳表和字典 \
+      ![](images/为什么同时使用跳表和字典.png)
+   2. 编码转换
+      1. 有序集合对象使用ziplist作为底层数据结构的必要条件 \
+      ![](images/有序集合对象使用ziplist作为底层数据结构的必要条件.png) \
+      ![](images/有序集合对象使用ziplist作为底层数据结构的必要条件1.png)
+   3. 有序集合命令的实现      \
+   ![](images/有序集合命令的实现.png)
+8. 类型检查与命令多态
+   1. Redis中用于操作键的命令大致可以分为两类
+      1. 可以对任何类型的键执行, 如: DEL, EXPIRE, RENAME, TYPE, OBJECT
+      2. 只能对特定类型的键执行 \
+      ![](images/只能对特定类型的键执行.png)
+   2. 类型检查的实现    \
+   ![](images/类型检查的实现1.png)  \
+   ![](images/类型检查的实现2.png)
+   3. 多态命令的实现
+      1. 可以认为有两种形式的多态: 面向类型的多态 + 面向编码的多态
+      2. LLEN多态的流程图 \
+      ![](images/LLEN多态的流程图.png)
+9. 内存回收
+    
+    
